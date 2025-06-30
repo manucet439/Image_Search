@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Search System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .image-result {
+            transition: all 0.3s ease;
+        }
+        .image-result:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg">
+    <!-- Navigation -->
+    <nav class="glass-effect shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-search text-white text-2xl mr-3"></i>
+                    <span class="text-white text-xl font-bold">Publicis Sapeint CS Visual Search System</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="userDisplay" class="text-white hidden">
+                        <i class="fas fa-user mr-2"></i>
+                        <span id="username"></span>
+                    </span>
+                    <button id="logoutBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition hidden">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Login/Register Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 fade-in">
+            <div class="text-center mb-6">
+                <i class="fas fa-camera text-6xl text-purple-600 mb-4"></i>
+                <h2 class="text-2xl font-bold text-gray-800">Welcome to Visual Search</h2>
+                <p class="text-gray-600 mt-2">Sign in to start searching</p>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginForm">
+                <form id="loginFormElement" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                        <input type="text" id="loginUsername" required 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                        <input type="password" id="loginPassword" required 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:outline-none transition">
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition">
+                        Sign In
+                    </button>
+                </form>
+                <p class="text-center mt-4 text-gray-600">
+                    Don't have an account? 
+                    <a href="#" id="showRegister" class="text-purple-600 hover:text-purple-700 font-semibold">Sign Up</a>
+                </p>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerForm" class="hidden">
+                <form id="registerFormElement" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                        <input type="text" id="regUsername" required 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                        <input type="email" id="regEmail" required 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                        <input type="password" id="regPassword" required 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:outline-none transition">
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">
+                        Create Account
+                    </button>
+                </form>
+                <p class="text-center mt-4 text-gray-600">
+                    Already have an account? 
+                    <a href="#" id="showLogin" class="text-purple-600 hover:text-purple-700 font-semibold">Sign In</a>
+                </p>
+            </div>
+
+            <div id="authMessage" class="mt-4 text-center"></div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="hidden">
+        <!-- Search Section -->
+        <div class="container mx-auto px-6 py-12">
+            <div class="max-w-4xl mx-auto">
+                <div class="glass-effect rounded-2xl p-8 shadow-xl">
+                    <h1 class="text-3xl font-bold text-white text-center mb-8">
+                        Search Your Images with Natural Language
+                    </h1>
+                    
+                    <!-- Search Bar -->
+                    <div class="relative">
+                        <input type="text" id="searchInput" 
+                            placeholder="Describe what you're looking for... (e.g., 'sunset over ocean', 'cute animals playing')"
+                            class="w-full px-6 py-4 pr-12 rounded-full text-lg focus:outline-none focus:ring-4 focus:ring-purple-400 transition">
+                        <button id="searchBtn" 
+                            class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full transition">
+                            <i class="fas fa-search text-xl"></i>
+                        </button>
+                    </div>
+
+                    <!-- Search Options -->
+                    <div class="mt-6 flex flex-wrap items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <label class="text-white flex items-center">
+                                <input type="checkbox" id="includeExplanations" checked class="mr-2">
+                                Include AI Explanations
+                            </label>
+                            <label class="text-white flex items-center">
+                                Results: 
+                                <select id="topK" class="ml-2 bg-white text-gray-800 rounded px-2 py-1">
+                                    <option value="3">3</option>
+                                    <option value="5" selected>5</option>
+                                    <option value="10">10</option>
+                                </select>
+                            </label>
+                        </div>
+                        <button id="uploadSearchBtn" class="mt-4 sm:mt-0 bg-white text-purple-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-image mr-2"></i>Search by Image
+                        </button>
+                    </div>
+
+                    <!-- Example Searches -->
+                    <div class="mt-6">
+                        <p class="text-white text-sm mb-3">Try these examples:</p>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="example-search bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm hover:bg-opacity-30 transition">
+                                beautiful sunset
+                            </button>
+                            <button class="example-search bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm hover:bg-opacity-30 transition">
+                                colorful flowers
+                            </button>
+                            <button class="example-search bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm hover:bg-opacity-30 transition">
+                                mountain landscape
+                            </button>
+                            <button class="example-search bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm hover:bg-opacity-30 transition">
+                                cute animals
+                            </button>
+                            <button class="example-search bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm hover:bg-opacity-30 transition">
+                                ocean waves
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="hidden">
+            <div class="flex justify-center items-center py-12">
+                <div class="loader"></div>
+                <span class="ml-4 text-white text-lg">Searching through your images...</span>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div id="searchResults" class="container mx-auto px-6 pb-12 hidden">
+            <div class="max-w-6xl mx-auto">
+                <div class="glass-effect rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-bold text-white">Search Results</h2>
+                        <span id="resultStats" class="text-white"></span>
+                    </div>
+                    <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Results will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div class="max-w-4xl max-h-full overflow-auto">
+            <img id="modalImage" src="" alt="" class="rounded-lg">
+            <button id="closeModal" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <input type="file" id="imageUpload" accept="image/*" class="hidden">
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8000';
+        let currentUser = null;
+
+        // Simple authentication (in production, use proper JWT tokens)
+        const auth = {
+            users: JSON.parse(localStorage.getItem('users') || '[]'),
+            
+            register(username, email, password) {
+                if (this.users.find(u => u.username === username)) {
+                    throw new Error('Username already exists');
+                }
+                const user = { username, email, password };
+                this.users.push(user);
+                localStorage.setItem('users', JSON.stringify(this.users));
+                return user;
+            },
+            
+            login(username, password) {
+                const user = this.users.find(u => u.username === username && u.password === password);
+                if (!user) {
+                    throw new Error('Invalid credentials');
+                }
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                return user;
+            },
+            
+            logout() {
+                currentUser = null;
+                localStorage.removeItem('currentUser');
+            },
+            
+            getCurrentUser() {
+                if (!currentUser) {
+                    const stored = localStorage.getItem('currentUser');
+                    if (stored) {
+                        currentUser = JSON.parse(stored);
+                    }
+                }
+                return currentUser;
+            }
+        };
+
+        // Check if user is logged in on load
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = auth.getCurrentUser();
+            if (user) {
+                showMainContent(user);
+            } else {
+                document.getElementById('authModal').classList.remove('hidden');
+            }
+        });
+
+        // Show/Hide Forms
+        document.getElementById('showRegister').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+            document.getElementById('authMessage').innerHTML = '';
+        });
+
+        document.getElementById('showLogin').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('authMessage').innerHTML = '';
+        });
+
+        // Login Form
+        document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const user = auth.login(username, password);
+                showMainContent(user);
+            } catch (error) {
+                showAuthMessage(error.message, 'error');
+            }
+        });
+
+        // Register Form
+        document.getElementById('registerFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            
+            try {
+                auth.register(username, email, password);
+                showAuthMessage('Account created successfully! Please login.', 'success');
+                setTimeout(() => {
+                    document.getElementById('showLogin').click();
+                }, 1500);
+            } catch (error) {
+                showAuthMessage(error.message, 'error');
+            }
+        });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            auth.logout();
+            location.reload();
+        });
+
+        // Show auth messages
+        function showAuthMessage(message, type) {
+            const messageEl = document.getElementById('authMessage');
+            const colorClass = type === 'error' ? 'text-red-500' : 'text-green-500';
+            messageEl.innerHTML = `<p class="${colorClass}">${message}</p>`;
+        }
+
+        // Show main content after login
+        function showMainContent(user) {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.getElementById('userDisplay').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            document.getElementById('username').textContent = user.username;
+        }
+
+        // Search functionality
+        document.getElementById('searchBtn').addEventListener('click', performSearch);
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+
+        // Example searches
+        document.querySelectorAll('.example-search').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('searchInput').value = btn.textContent.trim();
+                performSearch();
+            });
+        });
+
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+
+            const topK = parseInt(document.getElementById('topK').value);
+            const includeExplanations = document.getElementById('includeExplanations').checked;
+
+            // Show loading
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+            document.getElementById('searchResults').classList.add('hidden');
+
+            try {
+                // Log what we're sending
+                const requestBody = {
+                    query: query,
+                    top_k: topK,
+                    include_explanations: includeExplanations
+                };
+                console.log('Sending search request:', requestBody);
+
+                const response = await fetch(`${API_URL}/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Search failed:', response.status, errorData);
+                    throw new Error(`Search failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                console.error('Search error:', error);
+                alert('Search failed. Please make sure the API is running. Check console for details.');
+            } finally {
+                document.getElementById('loadingIndicator').classList.add('hidden');
+            }
+        }
+
+        function displayResults(data) {
+            const resultsGrid = document.getElementById('resultsGrid');
+            const resultStats = document.getElementById('resultStats');
+            
+            resultStats.textContent = `Found ${data.total_results} results in ${data.search_time_ms.toFixed(0)}ms`;
+            
+            resultsGrid.innerHTML = data.results.map((result, index) => `
+                <div class="image-result bg-white rounded-lg overflow-hidden shadow-lg fade-in" style="animation-delay: ${index * 0.1}s">
+                    <div class="relative">
+                        <img src="${API_URL}/image/${result.filename}" 
+                             alt="${result.filename}"
+                             class="w-full h-64 object-cover cursor-pointer"
+                             onclick="showImageModal('${API_URL}/image/${result.filename}')">
+                        <div class="absolute top-2 right-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm">
+                            ${(result.similarity_score * 100).toFixed(1)}% match
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-semibold text-gray-800 mb-2">${result.filename}</h3>
+                        ${result.explanation ? `
+                            <p class="text-sm text-gray-600">
+                                <i class="fas fa-robot text-purple-600 mr-2"></i>
+                                ${result.explanation}
+                            </p>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('searchResults').classList.remove('hidden');
+        }
+
+        // Image modal
+        function showImageModal(src) {
+            document.getElementById('modalImage').src = src;
+            document.getElementById('imageModal').classList.remove('hidden');
+        }
+
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('imageModal').classList.add('hidden');
+        });
+
+        // Upload search
+        document.getElementById('uploadSearchBtn').addEventListener('click', () => {
+            document.getElementById('imageUpload').click();
+        });
+
+        document.getElementById('imageUpload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Show loading
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+            document.getElementById('searchResults').classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/search/image?top_k=${document.getElementById('topK').value}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('Upload search failed');
+
+                const data = await response.json();
+                
+                // Convert to standard format for display
+                const formattedData = {
+                    query: 'Image Search',
+                    results: data.results.map(r => ({
+                        filename: r.filename,
+                        similarity_score: r.similarity,
+                        explanation: `Similar image found with ${(r.similarity * 100).toFixed(1)}% similarity`,
+                        metadata: r.metadata
+                    })),
+                    search_time_ms: 0,
+                    total_results: data.total
+                };
+                
+                displayResults(formattedData);
+            } catch (error) {
+                console.error('Upload search error:', error);
+                alert('Upload search failed. Please make sure the API is running.');
+            } finally {
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                e.target.value = ''; // Reset file input
+            }
+        });
+    </script>
+</body>
+</html>
